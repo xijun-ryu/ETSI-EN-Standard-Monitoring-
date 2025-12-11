@@ -6,12 +6,12 @@
     <title>ETSI 실시간 규격 조회</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; padding-top: 50px; }
+        body { background-color: #f4f6f9; padding-top: 50px; font-family: 'Segoe UI', sans-serif; }
         .search-box { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .table th { text-align: center; vertical-align: middle; background-color: #343a40; color: white; }
+        .table th { text-align: center; vertical-align: middle; background-color: #2c3e50; color: white; }
         .ver-text { font-weight: bold; font-size: 1.1rem; display: block; }
-        .date-text { font-size: 0.85rem; color: #666; }
-        .loading-spinner { display: none; }
+        .date-text { font-size: 0.85rem; color: #666; margin-top: 2px; }
+        .loading-spinner { display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -19,28 +19,28 @@
         
         <div class="search-box text-center mb-5">
             <h2 class="fw-bold mb-3">ETSI Live Search</h2>
-            <p class="text-muted mb-4">규격 번호를 입력하면 ETSI 서버를 실시간으로 조회합니다.</p>
+            <p class="text-muted mb-4">규격 번호를 입력하세요 (예: 301 893, 301 440-1)</p>
             
             <div class="input-group input-group-lg">
-                <input type="text" id="inputNo" class="form-control" placeholder="예: 301 893" onkeypress="handleEnter(event)">
+                <input type="text" id="inputNo" class="form-control" placeholder="규격 번호..." onkeypress="handleEnter(event)">
                 <button class="btn btn-primary px-4" onclick="runSearch()">검색</button>
             </div>
             
-            <div id="loader" class="mt-3 loading-spinner">
+            <div id="loader" class="loading-spinner">
                 <div class="spinner-border text-primary" role="status"></div>
-                <span class="ms-2">ETSI 서버 접속 중...</span>
+                <div class="mt-2 text-primary fw-bold">서버 데이터 분석 중...</div>
             </div>
         </div>
 
-        <div id="resultArea" class="card border-0 shadow-sm" style="display:none;">
+        <div id="resultArea" class="card border-0 shadow-sm mb-5" style="display:none;">
             <div class="card-body p-0">
                 <table class="table table-bordered mb-0 align-middle">
                     <thead>
                         <tr>
                             <th width="20%">규격 번호</th>
-                            <th width="26%" class="bg-success bg-opacity-75">Publication (_60)</th>
+                            <th width="26%" class="bg-success bg-opacity-75 text-white">Publication (_60)</th>
                             <th width="27%" class="bg-warning bg-opacity-75 text-dark">Final Draft (_30)</th>
-                            <th width="27%" class="bg-secondary bg-opacity-75">Draft (_20)</th>
+                            <th width="27%" class="bg-secondary bg-opacity-75 text-white">Draft (_20)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -60,7 +60,6 @@
     </div>
 
     <script>
-        // 프록시 서버 (CORS 우회용)
         const PROXY_URL = "https://api.allorigins.win/get?url=";
         const ETSI_BASE = "https://www.etsi.org/deliver/etsi_en";
 
@@ -69,130 +68,150 @@
         }
 
         async function runSearch() {
-            const input = document.getElementById('inputNo').value;
-            const cleanNum = input.replace(/[^0-9]/g, ""); // 숫자만 추출
-
-            if (cleanNum.length < 4) {
-                alert("정확한 규격 번호를 입력해주세요.");
-                return;
-            }
+            let input = document.getElementById('inputNo').value.trim();
+            if (input.length < 3) return alert("규격 번호를 정확히 입력해주세요.");
 
             // UI 초기화
             document.getElementById('loader').style.display = 'block';
             document.getElementById('resultArea').style.display = 'none';
             document.getElementById('errorMsg').style.display = 'none';
 
-            // 1. URL 계산 (예: 301893 -> 301800_301899 폴더)
-            const startRange = Math.floor(parseInt(cleanNum) / 100) * 100;
-            const folderRange = `${startRange}_${startRange + 99}`;
-            const targetUrl = `${ETSI_BASE}/${folderRange}/${cleanNum}/`;
-            
-            // 2. 프록시를 통해 요청
             try {
-                const response = await fetch(PROXY_URL + encodeURIComponent(targetUrl));
+                // 1. 규격 번호 파싱 (하이픈 및 공백 처리)
+                // "301 440 - 1" -> "301440-1"
+                const cleanInput = input.replace(/\s+/g, ""); 
+                
+                let mainNum = cleanInput;
+                let partNum = "";
+
+                // 하이픈이 있는 경우 분리 (예: 301440-1)
+                if (cleanInput.includes("-")) {
+                    const parts = cleanInput.split("-");
+                    mainNum = parts[0];     // 301440
+                    partNum = parts[1];     // 1
+                    // ETSI 규칙: 파트 번호가 1자리면 앞에 0을 붙임 (1 -> 01)
+                    if (partNum.length === 1) partNum = "0" + partNum; 
+                }
+
+                // 최종 타겟 폴더명 (예: 301893 또는 30144001)
+                let targetFolder = partNum ? (mainNum + partNum) : mainNum;
+
+                // 2. 상위 범위 폴더 계산 (예: 301400_301499)
+                // 규칙: 보통 앞 4자리를 기준으로 100 단위 범위를 가짐
+                // 301893 -> 3018xx, 30144001 -> 3014xx
+                let rangePrefix = targetFolder.substring(0, targetFolder.length >= 6 ? 4 : 3);
+                let rangeStart = parseInt(rangePrefix + "00");
+                
+                // 예외적으로 숫자가 짧은 경우의 처리
+                if (targetFolder.length < 5) rangeStart = Math.floor(parseInt(targetFolder) / 100) * 100;
+
+                const rangeFolder = `${rangeStart}_${rangeStart + 99}`;
+                const fullUrl = `${ETSI_BASE}/${rangeFolder}/${targetFolder}/`;
+
+                console.log("Target URL:", fullUrl);
+
+                // 3. 데이터 요청
+                const response = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
                 const json = await response.json();
                 
-                if (!json.contents) throw new Error("데이터를 가져올 수 없습니다.");
-
-                const html = json.contents;
-                parseAndDisplay(html, cleanNum, targetUrl);
+                if (!json.contents) throw new Error("Connection Failed");
+                
+                // 4. 파싱 시작
+                parseData(json.contents, input, fullUrl);
 
             } catch (err) {
-                showError("해당 규격을 찾을 수 없거나 서버 응답이 없습니다.");
+                console.error(err);
+                showError("데이터를 찾을 수 없습니다. 규격 번호를 확인해주세요.");
             } finally {
                 document.getElementById('loader').style.display = 'none';
             }
         }
 
-        function parseAndDisplay(html, stdNum, baseUrl) {
-            // HTML 파싱을 위한 임시 엘리먼트
+        function parseData(html, stdNum, baseUrl) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
             const links = doc.querySelectorAll('a');
-
-            // 저장소
+            
             let best = { pub: null, final: null, draft: null };
-            let foundAny = false;
-
-            // 정규식: 날짜 찾기 (MM/DD/YYYY)
-            // HTML 텍스트 전체에서 줄 단위로 날짜를 매칭하기 위해 원본 텍스트 사용
-            const textLines = html.split('\n');
+            let found = false;
 
             links.forEach(link => {
-                const href = link.getAttribute('href');
-                const folderName = link.textContent.trim();
-
-                // 버전 폴더 패턴 (예: 1.2.1_60)
+                const folderName = link.textContent.trim(); // 예: 02.01.01_60
+                
+                // 버전 폴더 패턴 매칭
                 const match = folderName.match(/(\d+\.\d+\.\d+)_(\d+)/);
                 
-                if (match && href && !href.startsWith('?')) {
-                    foundAny = true;
+                if (match) {
                     const verRaw = match[1];
                     const suffix = match[2]; // 60, 30, 20
                     const cleanVer = "V" + verRaw.split('.').map(n => parseInt(n)).join('.');
-                    
-                    // 날짜 찾기: 해당 폴더명이 포함된 텍스트 줄을 찾음
+
+                    // [날짜 찾기 수정]
+                    // 링크의 "바로 앞(previousSibling)"에 있는 텍스트 노드에서 날짜를 찾음
+                    // HTML 구조: [날짜 텍스트] <dir> <a href="...">버전</a>
                     let date = "-";
-                    for(let line of textLines) {
-                        if(line.includes(folderName)) {
-                            const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-                            if(dateMatch) {
-                                date = dateMatch[1];
-                                break;
-                            }
+                    let checkNode = link.previousSibling;
+                    
+                    // 바로 앞 노드가 없거나 텍스트가 아니면(예: <dir> 태그) 그 앞을 한 번 더 확인
+                    // 최대 3번 정도 앞으로 가면서 텍스트를 찾음
+                    for(let i=0; i<3; i++) {
+                        if(!checkNode) break;
+                        const text = checkNode.textContent || "";
+                        const dateMatch = text.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                        if (dateMatch) {
+                            date = dateMatch[1];
+                            break;
                         }
+                        checkNode = checkNode.previousSibling;
                     }
 
                     const item = {
                         ver: cleanVer,
                         raw: verRaw,
                         date: date,
-                        link: new URL(href, baseUrl).href
+                        link: baseUrl + folderName + "/"
                     };
 
-                    // 최신 버전 비교 및 저장
+                    found = true;
+                    // 최신 버전 업데이트
                     if (suffix === '60') updateBest(best, 'pub', item);
                     else if (suffix === '30') updateBest(best, 'final', item);
                     else if (suffix === '20') updateBest(best, 'draft', item);
                 }
             });
 
-            if (!foundAny) {
-                showError("폴더는 존재하지만 버전 정보를 찾을 수 없습니다.");
+            if (!found) {
+                showError("폴더는 존재하지만 버전 정보를 식별할 수 없습니다.");
                 return;
             }
 
-            // 결과 화면 표시
-            document.getElementById('resTitle').innerText = inputDisplayFormat(stdNum);
-            
+            // 결과 표시
+            document.getElementById('resTitle').innerText = stdNum;
             drawCell('cellPub', best.pub, 'success');
             drawCell('cellFinal', best.final, 'warning');
             drawCell('cellDraft', best.draft, '');
-
             document.getElementById('resultArea').style.display = 'block';
         }
 
         function updateBest(store, key, newItem) {
-            // 더 높은 버전이면 교체
+            // 버전 숫자가 더 크면 교체
             if (!store[key] || newItem.raw.localeCompare(store[key].raw, undefined, { numeric: true }) > 0) {
                 store[key] = newItem;
             }
         }
 
-        function drawCell(elementId, data, color) {
-            const el = document.getElementById(elementId);
+        function drawCell(id, data, color) {
+            const el = document.getElementById(id);
             if (!data) {
-                el.innerHTML = '<span class="text-muted text-center d-block">-</span>';
-                el.className = ''; // 배경색 제거
+                el.innerHTML = '<span class="text-muted d-block text-center py-3">-</span>';
+                el.className = '';
             } else {
-                el.className = color ? 'table-' + color : '';
+                el.className = 'table-' + color;
                 el.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-start">
-                            <span class="ver-text">${data.ver}</span>
-                            <span class="date-text">${data.date}</span>
-                        </div>
-                        <a href="${data.link}" target="_blank" class="btn btn-sm btn-outline-dark bg-white">Open</a>
+                    <div class="text-center py-2">
+                        <span class="ver-text mb-1">${data.ver}</span>
+                        <span class="date-text d-block mb-2">${data.date}</span>
+                        <a href="${data.link}" target="_blank" class="btn btn-sm btn-dark w-100">PDF 폴더</a>
                     </div>
                 `;
             }
@@ -202,12 +221,6 @@
             const el = document.getElementById('errorMsg');
             el.innerText = msg;
             el.style.display = 'block';
-        }
-
-        function inputDisplayFormat(num) {
-            // 301893 -> 301 893
-            if(num.length > 3) return num.slice(0,3) + " " + num.slice(3);
-            return num;
         }
     </script>
 </body>
