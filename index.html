@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETSI 규격 조회 (Fixed)</title>
+    <title>ETSI 규격 조회 (Final Fix)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f6f9; padding-top: 50px; font-family: 'Segoe UI', sans-serif; }
@@ -59,7 +59,6 @@
     </div>
 
     <script>
-        // 프록시 서버 (안정적인 AllOrigins 사용)
         const PROXY_URL = "https://api.allorigins.win/get?url=";
         const ETSI_BASE = "https://www.etsi.org/deliver/etsi_en";
 
@@ -71,46 +70,34 @@
             let input = document.getElementById('inputNo').value.trim();
             if (input.length < 3) return alert("규격 번호를 정확히 입력해주세요.");
 
-            // UI 초기화
             document.getElementById('loader').style.display = 'block';
             document.getElementById('resultArea').style.display = 'none';
             document.getElementById('errorMsg').style.display = 'none';
 
             try {
-                // 1. 규격 번호 -> 폴더 주소 변환 로직 (Part 번호 처리 강화)
-                let mainNum = "";
+                // 1. 규격 번호 및 폴더 경로 계산 (Part 번호 처리 포함)
+                input = input.replace(/\s+/g, ""); // 공백제거
+                let mainNum = input;
                 let partNum = "";
-                
-                // 공백 제거 및 하이픈 기준 분리
-                input = input.replace(/\s+/g, ""); // "301 440 - 1" -> "301440-1"
 
                 if (input.includes("-")) {
                     const parts = input.split("-");
-                    mainNum = parts[0];     // 301440
-                    partNum = parts[1];     // 1
-                    if (partNum.length === 1) partNum = "0" + partNum; // 01
-                } else {
-                    mainNum = input;        // 301893
+                    mainNum = parts[0];
+                    partNum = parts[1];
+                    if (partNum.length === 1) partNum = "0" + partNum;
                 }
-
-                // 폴더명 생성 (파트가 있으면 합치고, 없으면 그대로)
-                let targetFolder = partNum ? (mainNum + partNum) : mainNum; 
                 
-                // 범위 폴더 계산 (301400_301499)
-                let rangeKey = mainNum; 
-                // 만약 파트가 있는 긴 번호(300440)라면 앞 3자리가 아니라 해당 번호 대역을 찾아야 함
-                // ETSI 규칙: 6자리 숫자일 경우 앞 4자리가 범위 기준인 경우가 많음 (예: 300400_300499)
-                // 하지만 단순화를 위해: 입력값 숫자의 앞자리를 보고 100단위 범위를 잡음
-                const baseVal = parseInt(targetFolder.substring(0, targetFolder.length >= 6 ? 4 : 3) + "00"); 
-                // 예: 301893 -> 301800, 30044001 -> 300440?? (ETSI 구조가 복잡하므로 단순 계산 시도)
+                let targetFolder = partNum ? (mainNum + partNum) : mainNum;
+                // 폴더 범위 계산 (앞 4자리 기준, 예: 301440 -> 301400)
+                // ETSI 폴더 구조상 6자리 숫자의 경우 앞 4자리가 범위를 결정하는 경우가 많음
+                let rangePrefix = targetFolder.substring(0, targetFolder.length >= 6 ? 4 : 3);
+                let rangeStart = parseInt(rangePrefix + "00"); 
+                // 예외 처리: 숫자가 짧거나 패턴이 다를 경우 단순 100 단위 계산
+                if(targetFolder.length < 5) rangeStart = Math.floor(parseInt(targetFolder)/100)*100;
                 
-                // [수정] ETSI의 실제 디렉토리 구조에 맞춘 범위 계산
-                // 보통 100 단위로 끊깁니다. (301800_301899)
-                const folderInt = parseInt(targetFolder.substring(0, 6)); // 앞 6자리 기준 (301893)
-                const rangeStart = Math.floor(folderInt / 100) * 100;
                 const rangeFolder = `${rangeStart}_${rangeStart + 99}`;
-
                 const fullUrl = `${ETSI_BASE}/${rangeFolder}/${targetFolder}/`;
+
                 console.log("Target:", fullUrl);
 
                 // 2. 데이터 요청
@@ -119,51 +106,57 @@
                 
                 if (!json.contents) throw new Error("Connection Failed");
                 
-                // 3. 파싱 시작
-                parseData(json.contents, targetFolder, fullUrl);
+                // 3. 파싱 실행
+                parseData(json.contents, input, fullUrl);
 
             } catch (err) {
                 console.error(err);
-                showError("데이터를 가져올 수 없습니다. 규격 번호를 확인해주세요. (" + err.message + ")");
+                showError("데이터를 찾을 수 없습니다. (" + err.message + ")");
             } finally {
                 document.getElementById('loader').style.display = 'none';
             }
         }
 
         function parseData(html, stdNum, baseUrl) {
-            // HTML 내의 <pre> 태그 내용을 찾습니다 (텍스트 리스트)
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
-            const preText = doc.querySelector('pre') ? doc.querySelector('pre').innerText : doc.body.innerText;
-            
-            // 한 줄씩 쪼갭니다.
-            const lines = preText.split('\n');
+            const links = doc.querySelectorAll('a'); // 모든 링크를 찾음
             
             let best = { pub: null, final: null, draft: null };
             let found = false;
 
-            // [핵심] 정규식으로 '날짜'와 '버전명'이 같은 줄에 있는지 검사
-            // 예: "11/28/2024  1:21 PM  <dir> 02.02.01_60"
-            const regex = /(\d{1,2}[\/-]\d{1,2}[\/-]\d{4}).*?(\d+\.\d+\.\d+)_(\d+)/;
-
-            lines.forEach(line => {
-                const match = line.match(regex);
+            // [핵심 변경] 링크를 순회하면서, 그 링크 바로 앞에 있는 날짜 텍스트를 찾음
+            links.forEach(link => {
+                const folderName = link.innerText.trim(); // 예: 02.02.01_60
+                
+                // 버전 형식인지 확인 (숫자.숫자.숫자_숫자)
+                const match = folderName.match(/(\d+\.\d+\.\d+)_(\d+)/);
                 if (match) {
-                    found = true;
-                    const date = match[1];     // 11/28/2024
-                    const verRaw = match[2];   // 02.02.01
-                    const suffix = match[3];   // 60
-                    const cleanVer = "V" + verRaw.split('.').map(n => parseInt(n)).join('.');
+                    const verRaw = match[1];
+                    const suffix = match[2];
+                    
+                    // 링크의 "바로 앞" 텍스트 노드 가져오기 (여기에 날짜가 있음)
+                    // previousSibling을 사용하여 링크 앞의 텍스트 덩어리를 확인
+                    let date = "(날짜없음)";
+                    const prevText = link.previousSibling ? link.previousSibling.textContent : "";
+                    
+                    // 정규식으로 날짜 추출 (MM/DD/YYYY 형식)
+                    const dateMatch = prevText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                    if (dateMatch) {
+                        date = dateMatch[1]; // 예: 11/28/2024
+                    }
 
+                    const cleanVer = "V" + verRaw.split('.').map(n => parseInt(n)).join('.');
+                    
                     const item = {
                         ver: cleanVer,
                         raw: verRaw,
                         date: date,
-                        // 링크 생성 (해당 버전 폴더로 이동)
-                        link: baseUrl + verRaw + "_" + suffix + "/" 
+                        link: baseUrl + folderName + "/"
                     };
 
-                    // 최신 버전 비교 및 저장
+                    found = true;
+                    // 최신 버전 갱신
                     if (suffix === '60') updateBest(best, 'pub', item);
                     else if (suffix === '30') updateBest(best, 'final', item);
                     else if (suffix === '20') updateBest(best, 'draft', item);
@@ -171,31 +164,10 @@
             });
 
             if (!found) {
-                // <pre> 파싱 실패 시 백업 로직: <a> 태그만 뒤지기 (날짜는 포기하거나 따로 찾기)
-                const links = doc.querySelectorAll('a');
-                links.forEach(a => {
-                    const txt = a.innerText.trim();
-                    const m = txt.match(/(\d+\.\d+\.\d+)_(\d+)/);
-                    if(m) {
-                        found = true;
-                        // 날짜 없이 버전만이라도 표시
-                        const item = {
-                            ver: "V" + m[1].split('.').map(n=>parseInt(n)).join('.'),
-                            raw: m[1],
-                            date: "(날짜없음)",
-                            link: baseUrl + txt + "/"
-                        };
-                         if (m[2] === '60') updateBest(best, 'pub', item);
-                    }
-                });
-            }
-
-            if (!found) {
-                showError("폴더는 찾았으나 버전(_60, _30) 정보를 식별할 수 없습니다.");
+                showError("폴더는 존재하지만 버전 파일을 식별할 수 없습니다.");
                 return;
             }
 
-            // 결과 표시
             document.getElementById('resTitle').innerText = `검색 결과: ${stdNum}`;
             drawCell('cellPub', best.pub, 'success');
             drawCell('cellFinal', best.final, 'warning');
@@ -204,7 +176,7 @@
         }
 
         function updateBest(store, key, newItem) {
-            // 버전 숫자가 더 크면 교체 (문자열 비교지만 포맷이 같아서 작동)
+            // 버전 숫자가 더 크면 교체 (문자열 비교)
             if (!store[key] || newItem.raw > store[key].raw) {
                 store[key] = newItem;
             }
