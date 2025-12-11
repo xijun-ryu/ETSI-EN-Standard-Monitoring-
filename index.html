@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETSI 규격 버전 관리자</title>
+    <title>ETSI 규격 매니저</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
@@ -23,360 +23,502 @@
         }
         .main-card {
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
         }
-        .card-header {
-            background: #1e293b;
-            color: white;
+        
+        /* 탭 스타일 */
+        .nav-pills {
+            background: #f1f5f9;
+            padding: 0.5rem;
+            border-radius: 16px;
+            margin: 2rem 2rem 0 2rem;
+            display: inline-flex;
+        }
+        .nav-pills .nav-link {
+            border-radius: 12px;
+            color: #64748b;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.2s;
+        }
+        .nav-pills .nav-link.active {
+            background-color: white;
+            color: var(--primary-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 컨텐츠 영역 */
+        .tab-content { padding: 2rem; }
+        
+        /* 개별 검색 스타일 */
+        .single-search-box {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
             padding: 2rem;
             text-align: center;
         }
+        .form-control-lg {
+            border-radius: 12px;
+            border: 2px solid #cbd5e1;
+            font-size: 1rem;
+            padding: 0.8rem 1rem;
+        }
+        .form-control-lg:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        /* 엑셀 업로드 스타일 */
         .upload-area {
             border: 2px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 2rem;
+            border-radius: 16px;
+            padding: 3rem;
             text-align: center;
-            margin: 2rem;
-            transition: all 0.2s;
             cursor: pointer;
+            transition: all 0.2s;
             background: #f8fafc;
         }
         .upload-area:hover {
             border-color: var(--primary-color);
             background: #eff6ff;
         }
-        .status-badge {
-            font-size: 0.85rem;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 600;
+
+        /* 결과 테이블 공통 */
+        .result-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-top: 2rem;
+            display: none;
+            animation: slideUp 0.3s ease-out;
         }
-        .status-update { background: #fee2e2; color: #991b1b; } /* 업데이트 필요 */
-        .status-ok { background: #dcfce7; color: #166534; }    /* 최신 */
-        .status-wait { background: #f1f5f9; color: #64748b; }  /* 대기중 */
-        
-        .progress { height: 8px; margin: 0 2rem 2rem 2rem; display: none; }
-        .table-responsive { margin: 0 2rem 2rem 2rem; }
-        .table th { font-size: 0.85rem; text-transform: uppercase; color: #64748b; background: #f8fafc; }
+        .table th { background: #f8fafc; text-transform: uppercase; font-size: 0.85rem; color: #64748b; font-weight: 600; }
         .table td { vertical-align: middle; }
+        
+        /* 상태 배지 */
+        .status-badge { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; font-weight: 700; }
+        .bg-ok { background: #dcfce7; color: #166534; }
+        .bg-update { background: #fee2e2; color: #991b1b; }
+        .bg-wait { background: #f1f5f9; color: #64748b; }
+
+        .col-pub { border-top: 4px solid #10b981; }
+        .col-final { border-top: 4px solid #f59e0b; }
+        .col-draft { border-top: 4px solid #9ca3af; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="main-card">
-            <div class="card-header">
-                <h2 class="fw-bold mb-0">ETSI Batch Checker</h2>
-                <p class="text-white-50 mb-0 mt-2">엑셀 파일을 업로드하면 I열의 규격을 분석하여 최신 버전과 비교합니다.</p>
-            </div>
-
-            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                <i class="bi bi-cloud-arrow-up-fill text-primary" style="font-size: 3rem;"></i>
-                <h4 class="mt-3 fw-bold">Click to Upload Excel File</h4>
-                <p class="text-secondary">.xlsx or .xls files</p>
-                <input type="file" id="fileInput" accept=".xlsx, .xls" style="display: none;" onchange="handleFile(this)">
-            </div>
-
-            <div class="progress" id="progressBarContainer">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width: 0%"></div>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th width="5%">#</th>
-                            <th width="20%">규격 번호</th>
-                            <th width="15%">보유 버전 (Excel)</th>
-                            <th width="15%">최신 발행본 (ETSI)</th>
-                            <th width="15%">상태</th>
-                            <th width="20%">비고</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultBody">
-                        </tbody>
-                </table>
-            </div>
-            
-            <div class="text-center mb-4">
-                 <button onclick="exportToExcel()" class="btn btn-success px-4" id="btnExport" style="display:none;">
-                    <i class="bi bi-file-earmark-excel"></i> 결과 엑셀 저장
-                </button>
-            </div>
-        </div>
+<div class="container">
+    <div class="text-center mb-4">
+        <h1 class="fw-bold text-dark mb-2">ETSI Standards Manager</h1>
+        <p class="text-secondary">Harmonised Standard 검색 및 최신 버전 비교 도구</p>
     </div>
 
-    <script>
-        const PROXY_URL = "https://api.allorigins.win/get?url=";
-        const ETSI_BASE = "https://www.etsi.org/deliver/etsi_en";
-        let resultsData = [];
+    <div class="main-card">
+        <div class="text-center">
+            <ul class="nav nav-pills" id="pills-tab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-single" data-bs-toggle="pill" data-bs-target="#content-single" type="button">
+                        <i class="bi bi-search me-2"></i>개별 검색 / 비교
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-batch" data-bs-toggle="pill" data-bs-target="#content-batch" type="button">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>엑셀 일괄 비교
+                    </button>
+                </li>
+            </ul>
+        </div>
 
-        // 1. 엑셀 파일 읽기
-        function handleFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // 시트 데이터를 JSON으로 변환 (헤더 없이 배열의 배열로)
-                const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                
-                processRows(rows);
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // 2. 데이터 처리 및 순차 실행
-        async function processRows(rows) {
-            const resultBody = document.getElementById('resultBody');
-            resultBody.innerHTML = '';
-            resultsData = [];
+        <div class="tab-content">
             
-            const targetList = [];
+            <div class="tab-pane fade show active" id="content-single">
+                <div class="single-search-box">
+                    <div class="row g-3 justify-content-center">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold text-secondary small">규격 번호 (필수)</label>
+                            <input type="text" id="inputNo" class="form-control form-control-lg" placeholder="예: 301 489-1" onkeypress="handleEnter(event)">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small">내 버전 (선택)</label>
+                            <input type="text" id="inputMyVer" class="form-control form-control-lg" placeholder="예: V1.9.2">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary btn-lg w-100" onclick="runSingleSearch()">
+                                <i class="bi bi-search"></i> 조회
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-            // I열(인덱스 8) 읽기
-            rows.forEach((row, index) => {
-                if (index < 1) return; // 헤더(첫 줄) 건너뛰기 (필요시 조절)
-                const cellData = row[8]; // I열 = 인덱스 8
+                <div id="loaderSingle" class="text-center mt-4" style="display:none;">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 text-muted small">ETSI 서버 조회 중...</div>
+                </div>
 
-                if (cellData && typeof cellData === 'string' && cellData.includes("ETSI")) {
-                    // 파싱: "ETSI EN 300 330-2 V1.6.1:2015"
-                    // 정규식으로 규격번호와 버전 추출
-                    // Group 1: 300 330-2
-                    // Group 2: V1.6.1
-                    const match = cellData.match(/ETSI\s+EN\s+([\d\s-]+)\s+(V\d+\.\d+\.\d+)/i);
-                    
-                    if (match) {
-                        targetList.push({
-                            id: index,
-                            original: cellData,
-                            stdNum: match[1].trim(), // "300 330-2"
-                            myVer: match[2].trim()   // "V1.6.1"
-                        });
-                    }
-                }
-            });
+                <div id="resultSingle" class="result-card">
+                    <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold text-dark" id="resTitleSingle">-</h5>
+                        <div id="compareBadgeSingle"></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0 text-center">
+                            <thead>
+                                <tr>
+                                    <th class="col-pub">Publication (_60)</th>
+                                    <th class="col-final">Final Draft (_30)</th>
+                                    <th class="col-draft">Draft (_20)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td id="cellPub"></td>
+                                    <td id="cellFinal"></td>
+                                    <td id="cellDraft"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="errorSingle" class="alert alert-danger mt-3 text-center" style="display:none;"></div>
+            </div>
 
-            if (targetList.length === 0) {
-                alert("I열에서 'ETSI EN...' 형식의 데이터를 찾을 수 없습니다.");
-                return;
-            }
+            <div class="tab-pane fade" id="content-batch">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-cloud-upload text-primary" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 fw-bold">엑셀 파일 업로드</h5>
+                    <p class="text-secondary small mb-0">I열에 "ETSI EN..." 형식이 포함된 파일 (.xlsx)</p>
+                    <input type="file" id="fileInput" accept=".xlsx, .xls" style="display: none;" onchange="handleFile(this)">
+                </div>
 
-            // UI 준비
-            document.getElementById('progressBarContainer').style.display = 'flex';
-            document.getElementById('btnExport').style.display = 'none';
-            const progressBar = document.getElementById('progressBar');
+                <div class="progress mt-4" id="progressContainer" style="height: 10px; display:none;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width: 0%"></div>
+                </div>
+
+                <div class="table-responsive mt-4" id="batchResultArea" style="display:none;">
+                    <table class="table table-hover align-middle border">
+                        <thead>
+                            <tr>
+                                <th>규격 번호</th>
+                                <th>내 버전</th>
+                                <th>ETSI 최신 (Pub)</th>
+                                <th>상태</th>
+                                <th>링크</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button onclick="exportToExcel()" class="btn btn-success" id="btnExport" style="display:none;">
+                        <i class="bi bi-download me-2"></i>결과 다운로드
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    const PROXY_URL = "https://api.allorigins.win/get?url=";
+    const ETSI_BASE = "https://www.etsi.org/deliver/etsi_en";
+    let batchData = [];
+
+    // ==========================================
+    // 1. 개별 검색 기능
+    // ==========================================
+    function handleEnter(e) { if (e.key === 'Enter') runSingleSearch(); }
+
+    async function runSingleSearch() {
+        const input = document.getElementById('inputNo').value.trim();
+        const myVer = document.getElementById('inputMyVer').value.trim(); // 내 버전 (선택)
+        
+        if (input.length < 3) { alert("규격 번호를 입력해주세요."); return; }
+
+        // UI 초기화
+        document.getElementById('loaderSingle').style.display = 'block';
+        document.getElementById('resultSingle').style.display = 'none';
+        document.getElementById('errorSingle').style.display = 'none';
+        document.getElementById('compareBadgeSingle').innerHTML = '';
+
+        try {
+            // URL 계산 및 데이터 페치
+            const fullUrl = getTargetUrl(input);
+            const response = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
+            const json = await response.json();
             
-            // 순차 처리 (Rate Limit 방지용 delay)
-            for (let i = 0; i < targetList.length; i++) {
-                const item = targetList[i];
-                
-                // 테이블에 '대기중' 행 추가
-                addPendingRow(item);
+            if (!json.contents) throw new Error("Connection failed");
 
-                // ETSI 조회
-                const etsiData = await fetchEtsiData(item.stdNum);
-                
-                // 결과 분석 및 UI 업데이트
-                updateRow(item, etsiData);
+            // 파싱
+            const result = parseEtsiHtml(json.contents, fullUrl);
+            if (!result.found) throw new Error("Folder exists but no version found");
 
-                // 진행률 업데이트
-                const percent = Math.round(((i + 1) / targetList.length) * 100);
-                progressBar.style.width = percent + "%";
-                progressBar.innerText = percent + "%";
+            // 결과 표시
+            displaySingleResult(input, result.best, myVer);
 
-                // 0.5초 대기 (서버 부하 방지)
-                await new Promise(r => setTimeout(r, 500));
-            }
-
-            document.getElementById('btnExport').style.display = 'inline-block';
-            progressBar.classList.remove('progress-bar-animated');
-            progressBar.classList.add('bg-success');
-            progressBar.innerText = "완료!";
+        } catch (err) {
+            document.getElementById('errorSingle').innerText = "규격을 찾을 수 없습니다.";
+            document.getElementById('errorSingle').style.display = 'block';
+        } finally {
+            document.getElementById('loaderSingle').style.display = 'none';
         }
+    }
 
-        // 3. ETSI 데이터 가져오기 (기존 검색 로직 재활용)
-        async function fetchEtsiData(stdNumInput) {
-            try {
-                // "300 330-2" -> "300330", "02"
-                const cleanInput = stdNumInput.replace(/\s+/g, ""); 
-                let mainNum = cleanInput;
-                let partNum = "";
+    function displaySingleResult(stdNum, best, myVer) {
+        document.getElementById('resTitleSingle').innerText = formatTitle(stdNum);
+        
+        // 테이블 채우기
+        drawCell('cellPub', best.pub);
+        drawCell('cellFinal', best.final);
+        drawCell('cellDraft', best.draft);
 
-                if (cleanInput.includes("-")) {
-                    const parts = cleanInput.split("-");
-                    mainNum = parts[0];     
-                    partNum = parts[1];     
-                    if (partNum.length === 1) partNum = "0" + partNum; 
-                }
-
-                let targetFolder = partNum ? (mainNum + partNum) : mainNum;
-                let rangePrefix = targetFolder.substring(0, targetFolder.length >= 6 ? 4 : 3);
-                let rangeStart = parseInt(rangePrefix + "00");
-                if (targetFolder.length < 5) rangeStart = Math.floor(parseInt(targetFolder) / 100) * 100;
-
-                const rangeFolder = `${rangeStart}_${rangeStart + 99}`;
-                const fullUrl = `${ETSI_BASE}/${rangeFolder}/${targetFolder}/`;
-
-                const response = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
-                const json = await response.json();
-                
-                if (!json.contents) return null;
-                
-                return parseLatestPub(json.contents, fullUrl);
-
-            } catch (e) {
-                console.error(e);
-                return null;
-            }
-        }
-
-        // 4. 최신 Publication 버전 찾기
-        function parseLatestPub(html, baseUrl) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const links = doc.querySelectorAll('a');
+        // 비교 로직 (내 버전이 입력되었을 때만)
+        if (myVer && best.pub) {
+            const badgeArea = document.getElementById('compareBadgeSingle');
+            const etsiVer = best.pub.ver; // V2.1.1
             
-            let bestPub = null;
-
-            links.forEach(link => {
-                const folderName = link.textContent.trim();
-                const match = folderName.match(/(\d+\.\d+\.\d+)_(\d+)/);
-                
-                if (match) {
-                    const verRaw = match[1];
-                    const suffix = match[2];
-                    
-                    // Publication(_60)만 체크
-                    if (suffix === '60') {
-                        const cleanVer = "V" + verRaw.split('.').map(n => parseInt(n)).join('.');
-                        
-                        // 날짜 찾기
-                        let date = "-";
-                        let checkNode = link.previousSibling;
-                        for(let i=0; i<3; i++) {
-                            if(!checkNode) break;
-                            const text = checkNode.textContent || "";
-                            const dateMatch = text.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-                            if (dateMatch) {
-                                date = dateMatch[1]; // MM/DD/YYYY
-                                break;
-                            }
-                            checkNode = checkNode.previousSibling;
-                        }
-
-                        const item = {
-                            ver: cleanVer, // V2.1.1
-                            raw: verRaw,   // 02.01.01
-                            date: date,
-                            link: baseUrl + folderName + "/"
-                        };
-
-                        if (!bestPub || verRaw.localeCompare(bestPub.raw, undefined, { numeric: true }) > 0) {
-                            bestPub = item;
-                        }
-                    }
-                }
-            });
-            return bestPub;
+            // 버전 비교
+            const isNewer = compareVersions(etsiVer, myVer); // etsi > my
+            
+            if (etsiVer === myVer) {
+                badgeArea.innerHTML = '<span class="status-badge bg-ok"><i class="bi bi-check-circle me-1"></i>최신 버전입니다</span>';
+            } else if (isNewer) {
+                badgeArea.innerHTML = '<span class="status-badge bg-update"><i class="bi bi-exclamation-circle me-1"></i>업데이트 필요</span>';
+            } else {
+                badgeArea.innerHTML = '<span class="status-badge bg-wait">버전 확인 필요</span>';
+            }
         }
 
-        // 5. UI 관련 함수들
-        function addPendingRow(item) {
-            const tbody = document.getElementById('resultBody');
-            const row = document.createElement('tr');
-            row.id = `row-${item.id}`;
-            row.innerHTML = `
-                <td>${item.id}</td>
-                <td class="fw-bold">${item.stdNum}</td>
-                <td>${item.myVer}</td>
-                <td><div class="spinner-border spinner-border-sm text-primary"></div></td>
-                <td><span class="status-badge status-wait">조회중...</span></td>
+        document.getElementById('resultSingle').style.display = 'block';
+    }
+
+    function drawCell(id, data) {
+        const el = document.getElementById(id);
+        if (!data) {
+            el.innerHTML = '<span class="text-black-50 py-3 d-block">-</span>';
+        } else {
+            el.innerHTML = `
+                <div class="py-2">
+                    <span class="d-block fw-bold text-dark fs-5">${data.ver}</span>
+                    <span class="d-block text-secondary small mb-2">${data.date}</span>
+                    <a href="${data.link}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">PDF 폴더</a>
+                </div>
+            `;
+        }
+    }
+
+    // ==========================================
+    // 2. 엑셀 일괄 비교 기능
+    // ==========================================
+    function handleFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+            processBatch(rows);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    async function processBatch(rows) {
+        const batchBody = document.getElementById('batchBody');
+        batchBody.innerHTML = '';
+        batchData = [];
+        
+        // I열(index 8)에서 데이터 추출
+        const targets = [];
+        rows.forEach((row, idx) => {
+            if (idx < 1) return;
+            const txt = row[8];
+            if (typeof txt === 'string' && txt.includes("ETSI")) {
+                const match = txt.match(/ETSI\s+EN\s+([\d\s-]+)\s+(V\d+\.\d+\.\d+)/i);
+                if (match) targets.push({ id: idx, std: match[1].trim(), ver: match[2].trim() });
+            }
+        });
+
+        if (targets.length === 0) return alert("I열에서 데이터를 찾을 수 없습니다.");
+
+        // UI 세팅
+        document.getElementById('batchResultArea').style.display = 'block';
+        document.getElementById('progressContainer').style.display = 'flex';
+        document.getElementById('btnExport').style.display = 'none';
+        
+        for (let i = 0; i < targets.length; i++) {
+            const item = targets[i];
+            
+            // 로딩 행 추가
+            const tr = document.createElement('tr');
+            tr.id = `b-row-${i}`;
+            tr.innerHTML = `
+                <td>${item.std}</td>
+                <td>${item.ver}</td>
+                <td><div class="spinner-border spinner-border-sm text-secondary"></div></td>
+                <td><span class="status-badge bg-wait">대기</span></td>
                 <td></td>
             `;
-            tbody.appendChild(row);
-        }
+            batchBody.appendChild(tr);
 
-        function updateRow(item, etsiData) {
-            const row = document.getElementById(`row-${item.id}`);
-            if (!row) return;
-
-            let latestVer = "N/A";
-            let statusBadge = '<span class="status-badge status-wait">Not Found</span>';
-            let remark = "";
-            let linkHtml = "";
-
-            if (etsiData) {
-                latestVer = `${etsiData.ver}<br><small class="text-muted">${etsiData.date}</small>`;
-                linkHtml = `<a href="${etsiData.link}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Open</a>`;
-                
-                // 버전 비교
-                // 단순 문자열 비교로는 V1.10.1 < V1.2.1로 잘못될 수 있으므로 숫자 분리 비교 필요하지만,
-                // 여기선 간단히 raw 값(02.01.01)이 있으면 그것을 쓰는 게 정확함.
-                // item.myVer(V1.6.1) -> 01.06.01로 변환 필요하지만 복잡하므로
-                // ETSI가 제공하는 raw값 비교가 불가능하니, 문자열 자연 정렬 비교 사용
-                
-                const isNewer = compareVersions(etsiData.ver, item.myVer); // etsi > my
-
-                if (etsiData.ver === item.myVer) {
-                    statusBadge = '<span class="status-badge status-ok">최신 (OK)</span>';
-                } else if (isNewer) {
-                    statusBadge = '<span class="status-badge status-update">업데이트 필요</span>';
-                } else {
-                    statusBadge = '<span class="status-badge status-wait">확인 필요</span>'; // 내 버전이 더 높거나 이상함
+            // 조회
+            let etsiRes = null;
+            try {
+                const fullUrl = getTargetUrl(item.std);
+                const res = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
+                const json = await res.json();
+                if(json.contents) {
+                    const parsed = parseEtsiHtml(json.contents, fullUrl);
+                    if(parsed.found && parsed.best.pub) etsiRes = parsed.best.pub;
                 }
+            } catch(e) {}
+
+            // 결과 업데이트
+            updateBatchRow(i, item, etsiRes);
+
+            // 진행률
+            const pct = Math.round(((i+1)/targets.length)*100);
+            document.getElementById('progressBar').style.width = pct + "%";
+            
+            await new Promise(r => setTimeout(r, 500)); // 0.5초 딜레이
+        }
+
+        document.getElementById('btnExport').style.display = 'inline-block';
+        document.getElementById('progressBar').classList.remove('progress-bar-animated');
+    }
+
+    function updateBatchRow(idx, item, etsi) {
+        const tr = document.getElementById(`b-row-${idx}`);
+        let etsiVerHtml = '<span class="text-danger small">Not Found</span>';
+        let statusHtml = '<span class="status-badge bg-wait">확인불가</span>';
+        let linkHtml = '';
+
+        if (etsi) {
+            etsiVerHtml = `<strong>${etsi.ver}</strong><br><span class="small text-muted">${etsi.date}</span>`;
+            linkHtml = `<a href="${etsi.link}" target="_blank" class="btn btn-sm btn-light border"><i class="bi bi-box-arrow-up-right"></i></a>`;
+            
+            if (etsi.ver === item.ver) {
+                statusHtml = '<span class="status-badge bg-ok">최신</span>';
+            } else if (compareVersions(etsi.ver, item.ver)) {
+                statusHtml = '<span class="status-badge bg-update">업데이트!</span>';
+            } else {
+                statusHtml = '<span class="status-badge bg-wait">버전확인</span>';
             }
 
-            row.innerHTML = `
-                <td>${item.id}</td>
-                <td class="fw-bold">${item.stdNum}</td>
-                <td>${item.myVer}</td>
-                <td>${latestVer}</td>
-                <td>${statusBadge}</td>
-                <td>${linkHtml}</td>
-            `;
-
-            // 엑셀 내보내기용 데이터 저장
-            resultsData.push({
-                "규격번호": item.stdNum,
-                "내 버전": item.myVer,
-                "최신 버전": etsiData ? etsiData.ver : "Not Found",
-                "발행일": etsiData ? etsiData.date : "-",
-                "상태": etsiData ? (etsiData.ver === item.myVer ? "OK" : "Update Required") : "Error",
-                "링크": etsiData ? etsiData.link : ""
+            // 엑셀 저장용 데이터
+            batchData.push({ 
+                "규격": item.std, "보유버전": item.ver, 
+                "최신버전": etsi.ver, "상태": (etsi.ver===item.ver?"OK":"Update"), "링크": etsi.link 
             });
+        } else {
+             batchData.push({ "규격": item.std, "보유버전": item.ver, "최신버전": "Not Found", "상태": "Error" });
         }
 
-        // 버전 비교 함수 (V2.1.1 vs V1.6.1) return true if v1 > v2
-        function compareVersions(v1, v2) {
-            // 숫자만 추출하여 배열로 (2,1,1 vs 1,6,1)
-            const p1 = v1.replace(/[^0-9.]/g, '').split('.').map(Number);
-            const p2 = v2.replace(/[^0-9.]/g, '').split('.').map(Number);
+        tr.innerHTML = `<td>${item.std}</td><td>${item.ver}</td><td>${etsiVerHtml}</td><td>${statusHtml}</td><td>${linkHtml}</td>`;
+    }
 
-            for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
-                const n1 = p1[i] || 0;
-                const n2 = p2[i] || 0;
-                if (n1 > n2) return true;
-                if (n1 < n2) return false;
+    // ==========================================
+    // 공통 유틸리티 함수
+    // ==========================================
+    function getTargetUrl(input) {
+        const clean = input.replace(/\s+/g, "");
+        let main = clean, part = "";
+        if (clean.includes("-")) {
+            const p = clean.split("-");
+            main = p[0]; part = p[1];
+            if (part.length === 1) part = "0" + part;
+        }
+        const target = part ? (main + part) : main;
+        let pfx = target.substring(0, target.length>=6?4:3);
+        let start = parseInt(pfx + "00");
+        if(target.length < 5) start = Math.floor(parseInt(target)/100)*100;
+        
+        return `${ETSI_BASE}/${start}_${start+99}/${target}/`;
+    }
+
+    function parseEtsiHtml(html, baseUrl) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const links = doc.querySelectorAll('a');
+        let best = { pub: null, final: null, draft: null };
+        let found = false;
+
+        links.forEach(link => {
+            const name = link.textContent.trim();
+            const match = name.match(/(\d+\.\d+\.\d+)_(\d+)/);
+            if (match) {
+                found = true;
+                const verRaw = match[1];
+                const sfx = match[2];
+                const cleanVer = "V" + verRaw.split('.').map(n=>parseInt(n)).join('.');
+                
+                let date = "-";
+                let node = link.previousSibling;
+                for(let k=0; k<3; k++) {
+                    if(!node) break;
+                    const txt = node.textContent || "";
+                    const dm = txt.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                    if(dm) { date = formatDate(dm[1]); break; }
+                    node = node.previousSibling;
+                }
+
+                const item = { ver: cleanVer, raw: verRaw, date: date, link: baseUrl + name + "/" };
+                if(sfx==='60') updateBest(best, 'pub', item);
+                else if(sfx==='30') updateBest(best, 'final', item);
+                else if(sfx==='20') updateBest(best, 'draft', item);
             }
-            return false;
-        }
+        });
+        return { found, best };
+    }
 
-        // 6. 결과 엑셀 저장
-        function exportToExcel() {
-            const ws = XLSX.utils.json_to_sheet(resultsData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "검사결과");
-            XLSX.writeFile(wb, "ETSI_Check_Result.xlsx");
+    function updateBest(store, key, item) {
+        if (!store[key] || item.raw.localeCompare(store[key].raw, undefined, {numeric:true}) > 0) store[key] = item;
+    }
+
+    function compareVersions(v1, v2) { // return v1 > v2
+        const p1 = v1.replace(/[^0-9.]/g,'').split('.').map(Number);
+        const p2 = v2.replace(/[^0-9.]/g,'').split('.').map(Number);
+        for(let i=0; i<Math.max(p1.length,p2.length); i++) {
+            const n1=p1[i]||0, n2=p2[i]||0;
+            if(n1>n2) return true; if(n1<n2) return false;
         }
-    </script>
+        return false;
+    }
+
+    function formatDate(d) {
+        const p = d.split('/');
+        if(p.length===3) return `${p[2]}/${p[0].padStart(2,'0')}/${p[1].padStart(2,'0')}`;
+        return d;
+    }
+
+    function formatTitle(s) {
+        const c = s.replace(/[^0-9\-]/g, "");
+        let m = c, p = "";
+        if (c.includes("-")) { const sp = c.split("-"); m = sp[0]; p = "-" + sp[1]; }
+        if (m.length > 3) m = m.slice(0,3) + " " + m.slice(3);
+        return "ETSI EN " + m + p;
+    }
+
+    function exportToExcel() {
+        const ws = XLSX.utils.json_to_sheet(batchData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Result");
+        XLSX.writeFile(wb, "ETSI_Comparison.xlsx");
+    }
+</script>
+
 </body>
 </html>
