@@ -3,113 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETSI Standard Search</title>
+    <title>ETSI 규격 매니저</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
-        :root {
-            --primary-color: #2563eb;
-            --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-gradient);
-            min-height: 100vh;
-            padding: 2rem 0;
-            color: #1f2937;
-        }
-        .main-card {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        
-        /* 탭 스타일 */
-        .nav-pills {
-            background: #f1f5f9;
-            padding: 0.5rem;
-            border-radius: 16px;
-            margin: 2rem 2rem 0 2rem;
-            display: inline-flex;
-        }
-        .nav-pills .nav-link {
-            border-radius: 12px;
-            color: #64748b;
-            font-weight: 600;
-            padding: 0.75rem 1.5rem;
-            transition: all 0.2s;
-        }
-        .nav-pills .nav-link.active {
-            background-color: white;
-            color: var(--primary-color);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        /* 컨텐츠 영역 */
+        :root { --primary-color: #2563eb; --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-gradient); min-height: 100vh; padding: 2rem 0; color: #1f2937; }
+        .main-card { background: white; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 900px; margin: 0 auto; }
+        .nav-pills { background: #f1f5f9; padding: 0.5rem; border-radius: 16px; margin: 2rem 2rem 0 2rem; display: inline-flex; }
+        .nav-pills .nav-link { border-radius: 12px; color: #64748b; font-weight: 600; padding: 0.75rem 1.5rem; transition: all 0.2s; }
+        .nav-pills .nav-link.active { background-color: white; color: var(--primary-color); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .tab-content { padding: 2rem; }
         
-        /* 개별 검색 스타일 */
-        .single-search-box {
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-        }
-        .form-control-lg {
-            border-radius: 12px;
-            border: 2px solid #cbd5e1;
-            font-size: 1rem;
-            padding: 0.8rem 1rem;
-        }
-        .form-control-lg:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-        }
-
-        /* 엑셀 업로드 스타일 */
-        .upload-area {
-            border: 2px dashed #cbd5e1;
-            border-radius: 16px;
-            padding: 3rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: #f8fafc;
-        }
-        .upload-area:hover {
-            border-color: var(--primary-color);
-            background: #eff6ff;
-        }
-
-        /* 결과 테이블 공통 */
-        .result-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            overflow: hidden;
-            margin-top: 2rem;
-            display: none;
-            animation: slideUp 0.3s ease-out;
-        }
+        .single-search-box { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 16px; padding: 2rem; text-align: center; }
+        .form-control-lg { border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1rem; padding: 0.8rem 1rem; }
+        .form-control-lg:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+        .upload-area { border: 2px dashed #cbd5e1; border-radius: 16px; padding: 3rem; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+        .upload-area:hover { border-color: var(--primary-color); background: #eff6ff; }
+        
+        .result-card { border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; margin-top: 2rem; display: none; animation: slideUp 0.3s ease-out; }
         .table th { background: #f8fafc; text-transform: uppercase; font-size: 0.85rem; color: #64748b; font-weight: 600; }
         .table td { vertical-align: middle; }
         
-        /* 상태 배지 */
         .status-badge { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; font-weight: 700; }
         .bg-ok { background: #dcfce7; color: #166534; }
         .bg-update { background: #fee2e2; color: #991b1b; }
         .bg-wait { background: #f1f5f9; color: #64748b; }
-
         .col-pub { border-top: 4px solid #10b981; }
         .col-final { border-top: 4px solid #f59e0b; }
         .col-draft { border-top: 4px solid #9ca3af; }
-
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -118,7 +43,7 @@
 <div class="container">
     <div class="text-center mb-4">
         <h1 class="fw-bold text-dark mb-2">ETSI Standards Manager</h1>
-        <p class="text-secondary">Harmonised Standard 검색 및 최신 버전 비교 도구</p>
+        <p class="text-secondary">중복 규격 자동 필터링: 내가 가진 가장 높은 버전만 비교합니다</p>
     </div>
 
     <div class="main-card">
@@ -126,7 +51,7 @@
             <ul class="nav nav-pills" id="pills-tab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="tab-single" data-bs-toggle="pill" data-bs-target="#content-single" type="button">
-                        <i class="bi bi-search me-2"></i>개별 검색 / 비교
+                        <i class="bi bi-search me-2"></i>개별 검색
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -138,12 +63,11 @@
         </div>
 
         <div class="tab-content">
-            
             <div class="tab-pane fade show active" id="content-single">
                 <div class="single-search-box">
                     <div class="row g-3 justify-content-center">
                         <div class="col-md-5">
-                            <label class="form-label fw-bold text-secondary small">규격 번호 (필수)</label>
+                            <label class="form-label fw-bold text-secondary small">규격 번호</label>
                             <input type="text" id="inputNo" class="form-control form-control-lg" placeholder="예: 301 489-1" onkeypress="handleEnter(event)">
                         </div>
                         <div class="col-md-4">
@@ -157,12 +81,10 @@
                         </div>
                     </div>
                 </div>
-
                 <div id="loaderSingle" class="text-center mt-4" style="display:none;">
                     <div class="spinner-border text-primary" role="status"></div>
                     <div class="mt-2 text-muted small">ETSI 서버 조회 중...</div>
                 </div>
-
                 <div id="resultSingle" class="result-card">
                     <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 fw-bold text-dark" id="resTitleSingle">-</h5>
@@ -172,17 +94,13 @@
                         <table class="table mb-0 text-center">
                             <thead>
                                 <tr>
-                                    <th class="col-pub">Publication</th>
-                                    <th class="col-final">Final Draft</th>
-                                    <th class="col-draft">Draft</th>
+                                    <th class="col-pub">Publication (_60)</th>
+                                    <th class="col-final">Final Draft (_30)</th>
+                                    <th class="col-draft">Draft (_20)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td id="cellPub"></td>
-                                    <td id="cellFinal"></td>
-                                    <td id="cellDraft"></td>
-                                </tr>
+                                <tr><td id="cellPub"></td><td id="cellFinal"></td><td id="cellDraft"></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -194,11 +112,13 @@
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <i class="bi bi-cloud-upload text-primary" style="font-size: 3rem;"></i>
                     <h5 class="mt-3 fw-bold">엑셀 파일 업로드</h5>
-                    <p class="text-secondary small mb-0">I열에 "ETSI EN..." 형식이 포함된 파일 (.xlsx)</p>
+                    <p class="text-secondary small mb-0">I열에 데이터가 있는 파일 (.xlsx)</p>
                     <input type="file" id="fileInput" accept=".xlsx, .xls" style="display: none;" onchange="handleFile(this)">
                 </div>
 
-                <div class="progress mt-4" id="progressContainer" style="height: 10px; display:none;">
+                <div id="filterMsg" class="alert alert-info mt-3 text-center small" style="display:none;"></div>
+
+                <div class="progress mt-3" id="progressContainer" style="height: 10px; display:none;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width: 0%"></div>
                 </div>
 
@@ -207,7 +127,7 @@
                         <thead>
                             <tr>
                                 <th>규격 번호</th>
-                                <th>내 버전</th>
+                                <th>내 버전 (Max)</th>
                                 <th>ETSI 최신 (Pub)</th>
                                 <th>상태</th>
                                 <th>링크</th>
@@ -216,57 +136,46 @@
                         <tbody id="batchBody"></tbody>
                     </table>
                 </div>
-
                 <div class="text-center mt-4">
                     <button onclick="exportToExcel()" class="btn btn-success" id="btnExport" style="display:none;">
                         <i class="bi bi-download me-2"></i>결과 다운로드
                     </button>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
     const PROXY_URL = "https://api.allorigins.win/get?url=";
     const ETSI_BASE = "https://www.etsi.org/deliver/etsi_en";
     let batchData = [];
 
-    // ==========================================
-    // 1. 개별 검색 기능
-    // ==========================================
     function handleEnter(e) { if (e.key === 'Enter') runSingleSearch(); }
 
+    // ==========================================
+    // 1. 개별 검색
+    // ==========================================
     async function runSingleSearch() {
         const input = document.getElementById('inputNo').value.trim();
-        const myVer = document.getElementById('inputMyVer').value.trim(); // 내 버전 (선택)
-        
+        const myVer = document.getElementById('inputMyVer').value.trim();
         if (input.length < 3) { alert("규격 번호를 입력해주세요."); return; }
-
-        // UI 초기화
+        
+        // UI Reset
         document.getElementById('loaderSingle').style.display = 'block';
         document.getElementById('resultSingle').style.display = 'none';
         document.getElementById('errorSingle').style.display = 'none';
         document.getElementById('compareBadgeSingle').innerHTML = '';
 
         try {
-            // URL 계산 및 데이터 페치
             const fullUrl = getTargetUrl(input);
             const response = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
             const json = await response.json();
-            
             if (!json.contents) throw new Error("Connection failed");
-
-            // 파싱
             const result = parseEtsiHtml(json.contents, fullUrl);
-            if (!result.found) throw new Error("Folder exists but no version found");
-
-            // 결과 표시
+            if (!result.found) throw new Error("Not found");
             displaySingleResult(input, result.best, myVer);
-
         } catch (err) {
             document.getElementById('errorSingle').innerText = "규격을 찾을 수 없습니다.";
             document.getElementById('errorSingle').style.display = 'block';
@@ -277,18 +186,13 @@
 
     function displaySingleResult(stdNum, best, myVer) {
         document.getElementById('resTitleSingle').innerText = formatTitle(stdNum);
-        
-        // 테이블 채우기
         drawCell('cellPub', best.pub);
         drawCell('cellFinal', best.final);
         drawCell('cellDraft', best.draft);
 
-        // 비교 로직 (내 버전이 입력되었을 때만)
         if (myVer && best.pub) {
             const badgeArea = document.getElementById('compareBadgeSingle');
-            const etsiVer = best.pub.ver; // V2.1.1
-            
-            // 버전 비교
+            const etsiVer = best.pub.ver;
             const isNewer = compareVersions(etsiVer, myVer); // etsi > my
             
             if (etsiVer === myVer) {
@@ -299,32 +203,21 @@
                 badgeArea.innerHTML = '<span class="status-badge bg-wait">버전 확인 필요</span>';
             }
         }
-
         document.getElementById('resultSingle').style.display = 'block';
     }
 
     function drawCell(id, data) {
         const el = document.getElementById(id);
-        if (!data) {
-            el.innerHTML = '<span class="text-black-50 py-3 d-block">-</span>';
-        } else {
-            el.innerHTML = `
-                <div class="py-2">
-                    <span class="d-block fw-bold text-dark fs-5">${data.ver}</span>
-                    <span class="d-block text-secondary small mb-2">${data.date}</span>
-                    <a href="${data.link}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">PDF 폴더</a>
-                </div>
-            `;
-        }
+        if (!data) el.innerHTML = '<span class="text-black-50 py-3 d-block">-</span>';
+        else el.innerHTML = `<div class="py-2"><span class="d-block fw-bold text-dark fs-5">${data.ver}</span><span class="d-block text-secondary small mb-2">${data.date}</span><a href="${data.link}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">PDF 폴더</a></div>`;
     }
 
     // ==========================================
-    // 2. 엑셀 일괄 비교 기능
+    // 2. 엑셀 일괄 비교 (필터링 로직 추가)
     // ==========================================
     function handleFile(input) {
         const file = input.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = function(e) {
             const data = new Uint8Array(e.target.result);
@@ -341,59 +234,80 @@
         batchBody.innerHTML = '';
         batchData = [];
         
-        // I열(index 8)에서 데이터 추출
-        const targets = [];
+        // 1. 데이터 추출
+        const rawTargets = [];
         rows.forEach((row, idx) => {
             if (idx < 1) return;
             const txt = row[8];
             if (typeof txt === 'string' && txt.includes("ETSI")) {
                 const match = txt.match(/ETSI\s+EN\s+([\d\s-]+)\s+(V\d+\.\d+\.\d+)/i);
-                if (match) targets.push({ id: idx, std: match[1].trim(), ver: match[2].trim() });
+                if (match) rawTargets.push({ id: idx, std: match[1].trim(), ver: match[2].trim() });
             }
         });
 
-        if (targets.length === 0) return alert("I열에서 데이터를 찾을 수 없습니다.");
+        if (rawTargets.length === 0) return alert("I열 데이터를 찾을 수 없습니다.");
 
+        // 2. [필터링 로직] 같은 규격이면 더 높은 버전만 남김
+        const filteredMap = new Map(); // Key: "301893", Value: Item
+        
+        rawTargets.forEach(item => {
+            const key = item.std.replace(/\s+/g, ""); // 공백제거 키
+            
+            if (!filteredMap.has(key)) {
+                filteredMap.set(key, item);
+            } else {
+                const existing = filteredMap.get(key);
+                // 기존 것보다 현재 아이템의 버전이 더 높으면 교체 (compareVersions는 v1 > v2 일 때 true)
+                // 즉, item.ver > existing.ver 이면 교체
+                if (compareVersions(item.ver, existing.ver)) {
+                    filteredMap.set(key, item);
+                }
+            }
+        });
+
+        const targets = Array.from(filteredMap.values());
+        
         // UI 세팅
+        document.getElementById('filterMsg').innerText = `총 ${rawTargets.length}개 데이터 중 중복을 제외하고 ${targets.length}개의 최신 규격만 검사합니다.`;
+        document.getElementById('filterMsg').style.display = 'block';
         document.getElementById('batchResultArea').style.display = 'block';
         document.getElementById('progressContainer').style.display = 'flex';
         document.getElementById('btnExport').style.display = 'none';
-        
+
+        const etsiCache = new Map();
+
+        // 3. 처리 시작
         for (let i = 0; i < targets.length; i++) {
             const item = targets[i];
             
-            // 로딩 행 추가
             const tr = document.createElement('tr');
             tr.id = `b-row-${i}`;
-            tr.innerHTML = `
-                <td>${item.std}</td>
-                <td>${item.ver}</td>
-                <td><div class="spinner-border spinner-border-sm text-secondary"></div></td>
-                <td><span class="status-badge bg-wait">대기</span></td>
-                <td></td>
-            `;
+            tr.innerHTML = `<td>${item.std}</td><td>${item.ver}</td><td><div class="spinner-border spinner-border-sm text-secondary"></div></td><td><span class="status-badge bg-wait">대기</span></td><td></td>`;
             batchBody.appendChild(tr);
 
-            // 조회
             let etsiRes = null;
-            try {
-                const fullUrl = getTargetUrl(item.std);
-                const res = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
-                const json = await res.json();
-                if(json.contents) {
-                    const parsed = parseEtsiHtml(json.contents, fullUrl);
-                    if(parsed.found && parsed.best.pub) etsiRes = parsed.best.pub;
-                }
-            } catch(e) {}
+            const cacheKey = item.std.replace(/\s+/g, "");
 
-            // 결과 업데이트
+            if (etsiCache.has(cacheKey)) {
+                etsiRes = etsiCache.get(cacheKey);
+                await new Promise(r => setTimeout(r, 50)); 
+            } else {
+                try {
+                    const fullUrl = getTargetUrl(item.std);
+                    const res = await fetch(PROXY_URL + encodeURIComponent(fullUrl));
+                    const json = await res.json();
+                    if(json.contents) {
+                        const parsed = parseEtsiHtml(json.contents, fullUrl);
+                        if(parsed.found && parsed.best.pub) etsiRes = parsed.best.pub;
+                    }
+                    etsiCache.set(cacheKey, etsiRes);
+                } catch(e) { etsiCache.set(cacheKey, null); }
+                await new Promise(r => setTimeout(r, 400));
+            }
+
             updateBatchRow(i, item, etsiRes);
-
-            // 진행률
             const pct = Math.round(((i+1)/targets.length)*100);
             document.getElementById('progressBar').style.width = pct + "%";
-            
-            await new Promise(r => setTimeout(r, 500)); // 0.5초 딜레이
         }
 
         document.getElementById('btnExport').style.display = 'inline-block';
@@ -417,35 +331,24 @@
             } else {
                 statusHtml = '<span class="status-badge bg-wait">버전확인</span>';
             }
-
-            // 엑셀 저장용 데이터
-            batchData.push({ 
-                "규격": item.std, "보유버전": item.ver, 
-                "최신버전": etsi.ver, "상태": (etsi.ver===item.ver?"OK":"Update"), "링크": etsi.link 
-            });
+            batchData.push({ "규격": item.std, "보유버전(Max)": item.ver, "최신버전": etsi.ver, "상태": (etsi.ver===item.ver?"OK":"Update"), "링크": etsi.link });
         } else {
-             batchData.push({ "규격": item.std, "보유버전": item.ver, "최신버전": "Not Found", "상태": "Error" });
+             batchData.push({ "규격": item.std, "보유버전(Max)": item.ver, "최신버전": "Not Found", "상태": "Error" });
         }
-
         tr.innerHTML = `<td>${item.std}</td><td>${item.ver}</td><td>${etsiVerHtml}</td><td>${statusHtml}</td><td>${linkHtml}</td>`;
     }
 
     // ==========================================
-    // 공통 유틸리티 함수
+    // 유틸리티
     // ==========================================
     function getTargetUrl(input) {
         const clean = input.replace(/\s+/g, "");
         let main = clean, part = "";
-        if (clean.includes("-")) {
-            const p = clean.split("-");
-            main = p[0]; part = p[1];
-            if (part.length === 1) part = "0" + part;
-        }
+        if (clean.includes("-")) { const p = clean.split("-"); main = p[0]; part = p[1]; if (part.length === 1) part = "0" + part; }
         const target = part ? (main + part) : main;
         let pfx = target.substring(0, target.length>=6?4:3);
         let start = parseInt(pfx + "00");
         if(target.length < 5) start = Math.floor(parseInt(target)/100)*100;
-        
         return `${ETSI_BASE}/${start}_${start+99}/${target}/`;
     }
 
@@ -464,7 +367,6 @@
                 const verRaw = match[1];
                 const sfx = match[2];
                 const cleanVer = "V" + verRaw.split('.').map(n=>parseInt(n)).join('.');
-                
                 let date = "-";
                 let node = link.previousSibling;
                 for(let k=0; k<3; k++) {
@@ -474,7 +376,6 @@
                     if(dm) { date = formatDate(dm[1]); break; }
                     node = node.previousSibling;
                 }
-
                 const item = { ver: cleanVer, raw: verRaw, date: date, link: baseUrl + name + "/" };
                 if(sfx==='60') updateBest(best, 'pub', item);
                 else if(sfx==='30') updateBest(best, 'final', item);
@@ -488,7 +389,7 @@
         if (!store[key] || item.raw.localeCompare(store[key].raw, undefined, {numeric:true}) > 0) store[key] = item;
     }
 
-    function compareVersions(v1, v2) { // return v1 > v2
+    function compareVersions(v1, v2) { // return true if v1 > v2
         const p1 = v1.replace(/[^0-9.]/g,'').split('.').map(Number);
         const p2 = v2.replace(/[^0-9.]/g,'').split('.').map(Number);
         for(let i=0; i<Math.max(p1.length,p2.length); i++) {
@@ -497,7 +398,7 @@
         }
         return false;
     }
-
+    
     function formatDate(d) {
         const p = d.split('/');
         if(p.length===3) return `${p[2]}/${p[0].padStart(2,'0')}/${p[1].padStart(2,'0')}`;
@@ -519,6 +420,5 @@
         XLSX.writeFile(wb, "ETSI_Comparison.xlsx");
     }
 </script>
-
 </body>
 </html>
