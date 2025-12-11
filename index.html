@@ -6,12 +6,12 @@
     <title>ETSI 실시간 규격 조회</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; padding-top: 50px; }
+        body { background-color: #f4f6f9; padding-top: 50px; font-family: 'Segoe UI', sans-serif; }
         .search-box { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .table th { text-align: center; vertical-align: middle; background-color: #343a40; color: white; }
+        .table th { text-align: center; vertical-align: middle; background-color: #2c3e50; color: white; }
         .ver-text { font-weight: bold; font-size: 1.1rem; display: block; }
-        .date-text { font-size: 0.85rem; color: #666; }
-        .loading-spinner { display: none; }
+        .date-text { font-size: 0.85rem; color: #666; margin-top: 2px; }
+        .loading-spinner { display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -19,33 +19,34 @@
         
         <div class="search-box text-center mb-5">
             <h2 class="fw-bold mb-3">ETSI Live Search</h2>
-            <p class="text-muted mb-4">규격 번호를 입력하면 ETSI 서버를 실시간으로 조회합니다.</p>
+            <p class="text-muted mb-4">규격 번호를 입력하세요 (예: 301 893, 300 440-1)</p>
             
             <div class="input-group input-group-lg">
-                <input type="text" id="inputNo" class="form-control" placeholder="예: 301 893" onkeypress="handleEnter(event)">
+                <input type="text" id="inputNo" class="form-control" placeholder="규격 번호 입력..." onkeypress="handleEnter(event)">
                 <button class="btn btn-primary px-4" onclick="runSearch()">검색</button>
             </div>
             
-            <div id="loader" class="mt-3 loading-spinner">
+            <div id="loader" class="loading-spinner">
                 <div class="spinner-border text-primary" role="status"></div>
-                <span class="ms-2">ETSI 서버 접속 중...</span>
+                <div class="mt-2 text-primary fw-bold">ETSI 서버 접속 중...</div>
             </div>
         </div>
 
-        <div id="resultArea" class="card border-0 shadow-sm" style="display:none;">
+        <div id="resultArea" class="card border-0 shadow-sm mb-5" style="display:none;">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-primary" id="resTitle">결과</h5>
+            </div>
             <div class="card-body p-0">
                 <table class="table table-bordered mb-0 align-middle">
                     <thead>
                         <tr>
-                            <th width="20%">규격 번호</th>
-                            <th width="26%" class="bg-success bg-opacity-75">Publication (_60)</th>
-                            <th width="27%" class="bg-warning bg-opacity-75 text-dark">Final Draft (_30)</th>
-                            <th width="27%" class="bg-secondary bg-opacity-75">Draft (_20)</th>
+                            <th width="33%" class="bg-success bg-opacity-75 text-white">Publication (정식발행)<br><small>_60</small></th>
+                            <th width="33%" class="bg-warning bg-opacity-75 text-dark">Final Draft (최종초안)<br><small>_30</small></th>
+                            <th width="33%" class="bg-secondary bg-opacity-75 text-white">Draft (초안)<br><small>_20</small></th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td class="text-center fw-bold fs-4 text-primary" id="resTitle">-</td>
                             <td id="cellPub">-</td>
                             <td id="cellFinal">-</td>
                             <td id="cellDraft">-</td>
@@ -60,7 +61,6 @@
     </div>
 
     <script>
-        // 프록시 서버 (CORS 우회용)
         const PROXY_URL = "https://api.allorigins.win/get?url=";
         const ETSI_BASE = "https://www.etsi.org/deliver/etsi_en";
 
@@ -69,76 +69,103 @@
         }
 
         async function runSearch() {
-            const input = document.getElementById('inputNo').value;
-            const cleanNum = input.replace(/[^0-9]/g, ""); // 숫자만 추출
-
-            if (cleanNum.length < 4) {
-                alert("정확한 규격 번호를 입력해주세요.");
-                return;
-            }
+            const input = document.getElementById('inputNo').value.trim();
+            if (input.length < 3) return alert("정확한 규격 번호를 입력해주세요.");
 
             // UI 초기화
             document.getElementById('loader').style.display = 'block';
             document.getElementById('resultArea').style.display = 'none';
             document.getElementById('errorMsg').style.display = 'none';
 
-            // 1. URL 계산 (예: 301893 -> 301800_301899 폴더)
-            const startRange = Math.floor(parseInt(cleanNum) / 100) * 100;
-            const folderRange = `${startRange}_${startRange + 99}`;
-            const targetUrl = `${ETSI_BASE}/${folderRange}/${cleanNum}/`;
-            
-            // 2. 프록시를 통해 요청
             try {
+                // 1. 규격 번호 파싱 및 폴더명 계산 로직 개선
+                // 예: "301 893" -> base: 301893, part: null
+                // 예: "300 440-1" -> base: 300440, part: 01
+                
+                let baseNum = input.replace(/[^0-9\-]/g, ""); // 숫자와 - 만 남김
+                let folderName = "";
+                let searchRangeNum = ""; // 폴더 범위 계산용 숫자
+
+                if (baseNum.includes("-")) {
+                    const parts = baseNum.split("-");
+                    const mainPart = parts[0];
+                    let subPart = parts[1];
+                    
+                    // ETSI 규칙: 파트 번호가 1자리면 앞에 0을 붙임 (1 -> 01)
+                    if (subPart.length === 1) subPart = "0" + subPart;
+                    
+                    searchRangeNum = mainPart; // 범위는 앞자리 기준 (300440)
+                    folderName = mainPart + subPart; // 실제 폴더는 합쳐서 (30044001)
+                } else {
+                    searchRangeNum = baseNum;
+                    folderName = baseNum;
+                }
+
+                // 2. 범위 폴더 계산 (예: 301893 -> 301800_301899)
+                // 100 단위로 끊어서 범위 생성
+                const rangeStart = Math.floor(parseInt(searchRangeNum) / 100) * 100;
+                const rangeFolder = `${rangeStart}_${rangeStart + 99}`;
+                
+                // 최종 URL
+                const targetUrl = `${ETSI_BASE}/${rangeFolder}/${folderName}/`;
+                console.log("Target URL:", targetUrl); // 디버깅용
+
+                // 3. 프록시 요청
                 const response = await fetch(PROXY_URL + encodeURIComponent(targetUrl));
                 const json = await response.json();
-                
-                if (!json.contents) throw new Error("데이터를 가져올 수 없습니다.");
 
-                const html = json.contents;
-                parseAndDisplay(html, cleanNum, targetUrl);
+                if (!json.contents || json.status?.http_code === 404) {
+                    throw new Error("규격 폴더를 찾을 수 없습니다.");
+                }
+
+                // 4. 파싱 및 표시
+                parseAndDisplay(json.contents, input, targetUrl);
 
             } catch (err) {
-                showError("해당 규격을 찾을 수 없거나 서버 응답이 없습니다.");
+                document.getElementById('errorMsg').innerText = "결과를 찾을 수 없습니다. (번호를 확인해주세요)";
+                document.getElementById('errorMsg').style.display = 'block';
             } finally {
                 document.getElementById('loader').style.display = 'none';
             }
         }
 
-        function parseAndDisplay(html, stdNum, baseUrl) {
-            // HTML 파싱을 위한 임시 엘리먼트
+        function parseAndDisplay(html, inputTitle, baseUrl) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
             const links = doc.querySelectorAll('a');
+            
+            // 텍스트 라인별 분리 (날짜 찾기 위함)
+            // <pre> 태그 내부의 텍스트이거나, 일반 텍스트일 수 있음
+            const rawText = doc.body.innerText || doc.body.textContent;
+            const lines = rawText.split('\n');
 
-            // 저장소
             let best = { pub: null, final: null, draft: null };
             let foundAny = false;
-
-            // 정규식: 날짜 찾기 (MM/DD/YYYY)
-            // HTML 텍스트 전체에서 줄 단위로 날짜를 매칭하기 위해 원본 텍스트 사용
-            const textLines = html.split('\n');
 
             links.forEach(link => {
                 const href = link.getAttribute('href');
                 const folderName = link.textContent.trim();
 
-                // 버전 폴더 패턴 (예: 1.2.1_60)
+                // 버전 폴더 패턴 매칭 (예: 2.1.1_60)
+                // 숫자.숫자.숫자_숫자 형식
                 const match = folderName.match(/(\d+\.\d+\.\d+)_(\d+)/);
                 
-                if (match && href && !href.startsWith('?')) {
+                if (match && href && !href.startsWith('?') && !href.startsWith('/')) {
                     foundAny = true;
-                    const verRaw = match[1];
-                    const suffix = match[2]; // 60, 30, 20
+                    const verRaw = match[1]; // 2.1.1
+                    const suffix = match[2]; // 60
                     const cleanVer = "V" + verRaw.split('.').map(n => parseInt(n)).join('.');
-                    
-                    // 날짜 찾기: 해당 폴더명이 포함된 텍스트 줄을 찾음
+
+                    // 날짜 찾기 로직 개선 (라인 매칭)
                     let date = "-";
-                    for(let line of textLines) {
-                        if(line.includes(folderName)) {
-                            const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-                            if(dateMatch) {
-                                date = dateMatch[1];
-                                break;
+                    // 해당 폴더 이름이 포함된 라인을 찾고, 그 라인에서 날짜 패턴 추출
+                    for (let line of lines) {
+                        if (line.includes(folderName)) {
+                            // 패턴: MM/DD/YYYY 또는 YYYY-MM-DD
+                            const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{4})/) || line.match(/(\d{4}-\d{2}-\d{2})/);
+                            if (dateMatch) {
+                                date = dateMatch[0];
+                                break; 
                             }
                         }
                     }
@@ -146,69 +173,4 @@
                     const item = {
                         ver: cleanVer,
                         raw: verRaw,
-                        date: date,
-                        link: new URL(href, baseUrl).href
-                    };
-
-                    // 최신 버전 비교 및 저장
-                    if (suffix === '60') updateBest(best, 'pub', item);
-                    else if (suffix === '30') updateBest(best, 'final', item);
-                    else if (suffix === '20') updateBest(best, 'draft', item);
-                }
-            });
-
-            if (!foundAny) {
-                showError("폴더는 존재하지만 버전 정보를 찾을 수 없습니다.");
-                return;
-            }
-
-            // 결과 화면 표시
-            document.getElementById('resTitle').innerText = inputDisplayFormat(stdNum);
-            
-            drawCell('cellPub', best.pub, 'success');
-            drawCell('cellFinal', best.final, 'warning');
-            drawCell('cellDraft', best.draft, '');
-
-            document.getElementById('resultArea').style.display = 'block';
-        }
-
-        function updateBest(store, key, newItem) {
-            // 더 높은 버전이면 교체
-            if (!store[key] || newItem.raw.localeCompare(store[key].raw, undefined, { numeric: true }) > 0) {
-                store[key] = newItem;
-            }
-        }
-
-        function drawCell(elementId, data, color) {
-            const el = document.getElementById(elementId);
-            if (!data) {
-                el.innerHTML = '<span class="text-muted text-center d-block">-</span>';
-                el.className = ''; // 배경색 제거
-            } else {
-                el.className = color ? 'table-' + color : '';
-                el.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-start">
-                            <span class="ver-text">${data.ver}</span>
-                            <span class="date-text">${data.date}</span>
-                        </div>
-                        <a href="${data.link}" target="_blank" class="btn btn-sm btn-outline-dark bg-white">Open</a>
-                    </div>
-                `;
-            }
-        }
-
-        function showError(msg) {
-            const el = document.getElementById('errorMsg');
-            el.innerText = msg;
-            el.style.display = 'block';
-        }
-
-        function inputDisplayFormat(num) {
-            // 301893 -> 301 893
-            if(num.length > 3) return num.slice(0,3) + " " + num.slice(3);
-            return num;
-        }
-    </script>
-</body>
-</html>
+                        date
